@@ -92,6 +92,7 @@ exports/*.csv
 plots/*.png
 *.png
 !assets/*.png
+!.gitkeep
 
 # OS files
 .DS_Store
