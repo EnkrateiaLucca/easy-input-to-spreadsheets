@@ -30,16 +30,30 @@ Speak or type commands like *"create a spreadsheet for expenses"* or *"add coffe
 # Clone the repository
 git clone https://github.com/EnkrateiaLucca/easy-input-to-spreadsheets.git
 cd easy-input-to-spreadsheets
+```
 
-# Run with uv (auto-installs dependencies)
+#### Option 1: Using uv (Recommended)
+
+```bash
+# One command - auto-installs dependencies and runs
 uv run spreadsheet_agent.py
 ```
 
-Or with pip:
+#### Option 2: Using pip
 
 ```bash
-pip install claude-agent-sdk rich anthropic matplotlib
+# Install dependencies
+pip install -r requirements.txt
+
+# Run
 python spreadsheet_agent.py
+```
+
+#### Option 3: Quick one-liner with uv
+
+```bash
+# Clone and run in one go
+git clone https://github.com/EnkrateiaLucca/easy-input-to-spreadsheets.git && cd easy-input-to-spreadsheets && uv run spreadsheet_agent.py
 ```
 
 ### Optional: Voice Input
