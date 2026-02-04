@@ -26,34 +26,45 @@ Speak or type commands like *"create a spreadsheet for expenses"* or *"add coffe
 
 ### Installation
 
+#### Option 1: Install as a tool (Recommended)
+
+```bash
+# Install globally with uv
+uv tool install easy-input-to-spreadsheets
+
+# Run from anywhere
+easy-spreadsheets
+```
+
+#### Option 2: Run without installing
+
+```bash
+# Run directly with uvx (no installation needed)
+uvx easy-input-to-spreadsheets
+```
+
+#### Option 3: Install with pip
+
+```bash
+# Install from PyPI
+pip install easy-input-to-spreadsheets
+
+# Run
+easy-spreadsheets
+```
+
+#### Option 4: Development setup
+
 ```bash
 # Clone the repository
 git clone https://github.com/EnkrateiaLucca/easy-input-to-spreadsheets.git
 cd easy-input-to-spreadsheets
-```
 
-#### Option 1: Using uv (Recommended)
+# Install in development mode
+pip install -e ".[dev]"
 
-```bash
-# One command - auto-installs dependencies and runs
-uv run spreadsheet_agent.py
-```
-
-#### Option 2: Using pip
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run
-python spreadsheet_agent.py
-```
-
-#### Option 3: Quick one-liner with uv
-
-```bash
-# Clone and run in one go
-git clone https://github.com/EnkrateiaLucca/easy-input-to-spreadsheets.git && cd easy-input-to-spreadsheets && uv run spreadsheet_agent.py
+# Or run directly with uv
+uv run easy-spreadsheets
 ```
 
 ### Optional: Voice Input Setup
@@ -201,11 +212,15 @@ The agent maintains conversation context, so commands like *"add another one"* o
 
 ```
 easy-input-to-spreadsheets/
-├── spreadsheet_agent.py     # Main entry point & REPL
-├── spreadsheet_manager.py   # SQLite + CSV storage layer
-├── tools.py                 # Claude Agent SDK tool definitions
-├── voice_input.py           # Voice recording + transcription
-├── display.py               # Rich terminal rendering
+├── src/easy_input_to_spreadsheets/
+│   ├── __init__.py          # Package version & exports
+│   ├── cli.py               # CLI entry point
+│   ├── agent.py             # Main agent & REPL loop
+│   ├── manager.py           # SQLite + CSV storage layer
+│   ├── tools.py             # Claude Agent SDK tool definitions
+│   ├── voice_input.py       # Voice recording + whisper.cpp
+│   └── display.py           # Rich terminal rendering
+├── .github/workflows/       # CI/CD (test + publish)
 ├── pyproject.toml           # Project configuration
 ├── data/                    # SQLite databases
 └── exports/                 # CSV exports
