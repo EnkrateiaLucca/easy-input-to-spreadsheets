@@ -56,11 +56,49 @@ python spreadsheet_agent.py
 git clone https://github.com/EnkrateiaLucca/easy-input-to-spreadsheets.git && cd easy-input-to-spreadsheets && uv run spreadsheet_agent.py
 ```
 
-### Optional: Voice Input
+### Optional: Voice Input Setup
 
-For voice commands, install:
-- ffmpeg: `brew install ffmpeg`
-- [whisper.cpp](https://github.com/ggerganov/whisper.cpp) with `transcribe` command in PATH
+Voice input requires **ffmpeg** and **whisper.cpp**. Follow these steps:
+
+#### 1. Install ffmpeg
+
+```bash
+brew install ffmpeg
+```
+
+#### 2. Build whisper.cpp
+
+```bash
+# Clone and build whisper.cpp in your home directory
+cd ~
+git clone https://github.com/ggml-org/whisper.cpp.git
+cd whisper.cpp
+cmake -B build
+cmake --build build -j --config Release
+```
+
+#### 3. Download a model
+
+```bash
+# Download the base English model (recommended for speed)
+cd ~/whisper.cpp
+sh ./models/download-ggml-model.sh base.en
+```
+
+Available models (speed vs accuracy trade-off):
+- `tiny.en` - Fastest, least accurate
+- `base.en` - Good balance (recommended)
+- `small.en` - More accurate, slower
+- `medium.en` / `large` - Most accurate, slowest
+
+#### 4. Verify installation
+
+The app auto-detects whisper.cpp if installed in `~/whisper.cpp`. For custom locations, set environment variables:
+
+```bash
+export WHISPER_CPP_PATH=/path/to/whisper-cli
+export WHISPER_CPP_MODEL=/path/to/ggml-base.en.bin
+```
 
 ## Usage
 
@@ -190,7 +228,9 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 **"Voice input not available"**
 - Install ffmpeg: `brew install ffmpeg`
-- Ensure `transcribe` command is in your PATH (whisper.cpp)
+- Build whisper.cpp in `~/whisper.cpp` (see Voice Input Setup above)
+- Download a model: `sh ./models/download-ggml-model.sh base.en`
+- Or set `WHISPER_CPP_PATH` and `WHISPER_CPP_MODEL` environment variables
 
 **"No spreadsheet selected"**
 - Create a spreadsheet first: `"create a new spreadsheet called tasks"`
@@ -204,4 +244,4 @@ MIT - see [LICENSE](LICENSE) for details.
 
 - Built with the [Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/sdk-overview)
 - Terminal rendering by [Rich](https://github.com/Textualize/rich)
-- Voice transcription by [whisper.cpp](https://github.com/ggerganov/whisper.cpp)
+- Voice transcription by [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
