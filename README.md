@@ -26,45 +26,37 @@ Speak or type commands like *"create a spreadsheet for expenses"* or *"add coffe
 
 ### Installation
 
-#### Option 1: Install as a tool (Recommended)
-
-```bash
-# Install globally with uv
-uv tool install easy-input-to-spreadsheets
-
-# Run from anywhere
-easy-spreadsheets
-```
-
-#### Option 2: Run without installing
-
-```bash
-# Run directly with uvx (no installation needed)
-uvx easy-input-to-spreadsheets
-```
-
-#### Option 3: Install with pip
-
-```bash
-# Install from PyPI
-pip install easy-input-to-spreadsheets
-
-# Run
-easy-spreadsheets
-```
-
-#### Option 4: Development setup
-
 ```bash
 # Clone the repository
 git clone https://github.com/EnkrateiaLucca/easy-input-to-spreadsheets.git
 cd easy-input-to-spreadsheets
+```
 
-# Install in development mode
-pip install -e ".[dev]"
+#### Option 1: Using uv (Recommended)
 
-# Or run directly with uv
+```bash
+# One command - auto-installs dependencies and runs
 uv run easy-spreadsheets
+```
+
+#### Option 2: Using pip
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run
+python -m easy_input_to_spreadsheets.cli
+```
+
+#### Option 3: Install in editable mode
+
+```bash
+# Install package locally
+pip install -e .
+
+# Run from anywhere
+easy-spreadsheets
 ```
 
 ### Optional: Voice Input Setup
