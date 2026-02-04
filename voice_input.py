@@ -1,13 +1,19 @@
 """
 Voice Input module: Record audio and transcribe using whisper.cpp.
 
-Leverages the existing `transcribe` command for speech-to-text.
-Uses ffmpeg for audio recording (press Enter to stop).
+Uses ffmpeg for audio recording and whisper.cpp for speech-to-text.
+Requires whisper.cpp to be built and a model downloaded.
+
+Setup:
+    1. Build whisper.cpp: https://github.com/ggml-org/whisper.cpp
+    2. Download a model: ./models/download-ggml-model.sh base.en
+    3. Set environment variables (optional):
+       - WHISPER_CPP_PATH: Path to whisper-cli executable
+       - WHISPER_CPP_MODEL: Path to .bin model file
 """
 
 import subprocess
 import tempfile
-import json
 import os
 import sys
 import select
@@ -15,9 +21,84 @@ import termios
 import tty
 import shutil
 from pathlib import Path
-from typing import Callable
 
 from display import show_voice_status, show_transcription, show_error, console
+
+
+# Default paths to search for whisper.cpp
+WHISPER_SEARCH_PATHS = [
+    Path.home() / "whisper.cpp" / "build" / "bin" / "whisper-cli",
+    Path.home() / "whisper.cpp" / "main",  # Older build name
+    Path("/usr/local/bin/whisper-cli"),
+    Path("/opt/homebrew/bin/whisper-cli"),
+]
+
+# Default model search paths
+MODEL_SEARCH_PATHS = [
+    Path.home() / "whisper.cpp" / "models" / "ggml-base.en.bin",
+    Path.home() / "whisper.cpp" / "models" / "ggml-base.bin",
+    Path.home() / "whisper.cpp" / "models" / "ggml-small.en.bin",
+    Path.home() / "whisper.cpp" / "models" / "ggml-tiny.en.bin",
+]
+
+
+def find_whisper_cli() -> Path | None:
+    """
+    Find the whisper-cli executable.
+
+    Checks WHISPER_CPP_PATH env var first, then searches common locations.
+
+    Returns:
+        Path to whisper-cli or None if not found
+    """
+    # Check environment variable first
+    env_path = os.environ.get("WHISPER_CPP_PATH")
+    if env_path:
+        path = Path(env_path)
+        if path.exists() and path.is_file():
+            return path
+
+    # Check if it's in PATH
+    which_result = shutil.which("whisper-cli")
+    if which_result:
+        return Path(which_result)
+
+    # Search common locations
+    for search_path in WHISPER_SEARCH_PATHS:
+        if search_path.exists() and search_path.is_file():
+            return search_path
+
+    return None
+
+
+def find_whisper_model() -> Path | None:
+    """
+    Find a whisper.cpp model file.
+
+    Checks WHISPER_CPP_MODEL env var first, then searches common locations.
+
+    Returns:
+        Path to model .bin file or None if not found
+    """
+    # Check environment variable first
+    env_path = os.environ.get("WHISPER_CPP_MODEL")
+    if env_path:
+        path = Path(env_path)
+        if path.exists() and path.is_file():
+            return path
+
+    # Search common locations
+    for search_path in MODEL_SEARCH_PATHS:
+        if search_path.exists() and search_path.is_file():
+            return search_path
+
+    # Search for any .bin model in ~/whisper.cpp/models/
+    models_dir = Path.home() / "whisper.cpp" / "models"
+    if models_dir.exists():
+        for model_file in models_dir.glob("ggml-*.bin"):
+            return model_file
+
+    return None
 
 
 def record_audio_ffmpeg(output_path: str, max_duration: int = 30) -> bool:
@@ -77,70 +158,55 @@ def record_audio_ffmpeg(output_path: str, max_duration: int = 30) -> bool:
 
 def transcribe_audio(audio_path: str) -> str | None:
     """
-    Transcribe audio using the existing `transcribe` command.
-
-    The transcribe command outputs JSON by default, which we parse
-    to extract the transcribed text.
+    Transcribe audio using whisper.cpp.
 
     Args:
-        audio_path: Path to the audio file
+        audio_path: Path to the audio file (16-bit WAV, 16kHz, mono)
 
     Returns:
         Transcribed text or None if transcription failed
     """
     show_voice_status("transcribing")
 
+    whisper_cli = find_whisper_cli()
+    model_path = find_whisper_model()
+
+    if not whisper_cli:
+        show_error("whisper-cli not found. Set WHISPER_CPP_PATH or build whisper.cpp in ~/whisper.cpp")
+        return None
+
+    if not model_path:
+        show_error("No whisper model found. Set WHISPER_CPP_MODEL or download a model to ~/whisper.cpp/models/")
+        return None
+
     try:
-        # Run through interactive shell to resolve aliases
+        # Run whisper-cli with the model and audio file
+        # -nt: no timestamps, -np: no prints (cleaner output)
         result = subprocess.run(
-            ["zsh", "-i", "-c", f"transcribe '{audio_path}'"],
+            [
+                str(whisper_cli),
+                "-m", str(model_path),
+                "-f", audio_path,
+                "-nt",  # No timestamps in output
+                "-np",  # No progress prints
+            ],
             capture_output=True,
             text=True,
             timeout=120
         )
 
         if result.returncode != 0:
-            show_error(f"Transcription failed: {result.stderr}")
+            error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+            show_error(f"Transcription failed: {error_msg}")
             return None
 
-        json_path = Path(audio_path).with_suffix(".json")
-        if not json_path.exists():
-            base = Path(audio_path).stem
-            parent = Path(audio_path).parent
-            json_path = parent / f"{base}.json"
+        # whisper-cli outputs the transcription to stdout
+        text = result.stdout.strip()
 
-        if not json_path.exists():
-            for p in Path(audio_path).parent.glob("*.json"):
-                if base in p.name:
-                    json_path = p
-                    break
+        # Clean up the text (remove extra whitespace, newlines)
+        text = " ".join(text.split())
 
-        if json_path.exists():
-            with open(json_path) as f:
-                data = json.load(f)
-
-            text_parts = []
-            if "transcription" in data:
-                for segment in data["transcription"]:
-                    if "text" in segment:
-                        text_parts.append(segment["text"].strip())
-            elif "text" in data:
-                text_parts.append(data["text"].strip())
-            elif isinstance(data, list):
-                for segment in data:
-                    if isinstance(segment, dict) and "text" in segment:
-                        text_parts.append(segment["text"].strip())
-
-            json_path.unlink()
-
-            text = " ".join(text_parts).strip()
-            text = " ".join(text.split())
-            return text if text else None
-
-        if result.stdout.strip():
-            return result.stdout.strip()
-
-        return None
+        return text if text else None
 
     except subprocess.TimeoutExpired:
         show_error("Transcription timed out")
@@ -192,31 +258,17 @@ def check_voice_available() -> tuple[bool, str]:
     """
     missing = []
 
-    # Check ffmpeg - standard executable, shutil.which works
+    # Check ffmpeg
     if not shutil.which("ffmpeg"):
-        missing.append("ffmpeg")
+        missing.append("ffmpeg (brew install ffmpeg)")
 
-    # Check transcribe - may be a shell alias, so we need to check via shell
-    # First try shutil.which (works for executables in PATH)
-    transcribe_found = shutil.which("transcribe")
+    # Check whisper-cli
+    if not find_whisper_cli():
+        missing.append("whisper-cli (build whisper.cpp or set WHISPER_CPP_PATH)")
 
-    if not transcribe_found:
-        # Try running 'which transcribe' through the shell to resolve aliases
-        try:
-            result = subprocess.run(
-                ["zsh", "-i", "-c", "which transcribe"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            # zsh 'which' shows "aliased to /path" for aliases
-            if result.returncode == 0 and result.stdout.strip():
-                transcribe_found = True
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
-
-    if not transcribe_found:
-        missing.append("transcribe")
+    # Check model
+    if not find_whisper_model():
+        missing.append("whisper model (download model or set WHISPER_CPP_MODEL)")
 
     if missing:
         return False, f"Missing: {', '.join(missing)}"
